@@ -1,0 +1,126 @@
+# Compila o .ipa no runner macOS do GitHub (Xcode). Não usa EAS nem token da Expo.
+# Para gerar .ipa instalável no iPhone, a Apple exige assinatura: configure os secrets
+# com certificado (.p12) e perfil de provisionamento do Apple Developer.
+
+name: iOS IPA (GitHub macOS + Xcode)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar secrets Apple (obrigatórios para assinar)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          missing=0
+          for v in APPLE_TEAM_ID IOS_CERTIFICATE_BASE64 IOS_CERTIFICATE_PASSWORD IOS_PROVISION_PROFILE_BASE64 KEYCHAIN_PASSWORD; do
+            eval "val=\$$v"
+            if [ -z "$val" ]; then echo "::error::Secret ausente: $v"; missing=1; fi
+          done
+          if [ "$missing" != 0 ]; then
+            echo "Configure em Settings → Secrets → Actions (credenciais Apple Developer, não Expo)."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Expo prebuild (ios/)
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: CocoaPods
+        run: cd ios && pod install --repo-update
+
+      - name: Keychain + certificado + perfil
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/dist.p12"
+          PP_PATH="$RUNNER_TEMP/app.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          echo -n "$IOS_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          echo -n "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security cms -D -i "$PP_PATH" > /tmp/pp.plist
+          PP_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /tmp/pp.plist)
+          PP_NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' /tmp/pp.plist)
+          echo "PP_UUID=$PP_UUID" >> "$GITHUB_ENV"
+          echo "PP_NAME=$PP_NAME" >> "$GITHUB_ENV"
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"${PP_UUID}.mobileprovision"
+          security find-identity -v -p codesigning
+
+      - name: Archive (xcodebuild)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodebuild \
+            -workspace "Nubank.xcworkspace" \
+            -scheme "Nubank" \
+            -configuration Release \
+            -archivePath "$PWD/build/Nubank.xcarchive" \
+            -destination 'generic/platform=iOS' \
+            archive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PP_NAME"
+
+      - name: Export IPA
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BUNDLE_ID: com.nubanktestios.com
+        run: |
+          set -euo pipefail
+          {
+            echo '<?xml version="1.0" encoding="UTF-8"?>'
+            echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+            echo '<plist version="1.0"><dict>'
+            echo '<key>method</key><string>development</string>'
+            echo '<key>signingStyle</key><string>manual</string>'
+            echo "<key>teamID</key><string>${APPLE_TEAM_ID}</string>"
+            echo '<key>provisioningProfiles</key><dict>'
+            echo "<key>${BUNDLE_ID}</key><string>${PP_NAME}</string>"
+            echo '</dict></dict></plist>'
+          } > /tmp/ExportOptions.plist
+          cd ios
+          xcodebuild -exportArchive \
+            -archivePath "$PWD/build/Nubank.xcarchive" \
+            -exportPath "$PWD/build/export" \
+            -exportOptionsPlist /tmp/ExportOptions.plist
+          IPA=$(find "$PWD/build/export" -name "*.ipa" | head -1)
+          cp "$IPA" "$GITHUB_WORKSPACE/Nubank.ipa"
+          ls -la "$GITHUB_WORKSPACE/Nubank.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: nubank-ios-ipa
+          path: Nubank.ipa
+          if-no-files-found: error

@@ -11,25 +11,35 @@ npx expo start
 
 Abra no **Expo Go** (SDK alinhado ao `package.json`).
 
-## EAS (build .ipa) — primeira vez
+## Build .ipa no GitHub Actions (macOS + Xcode, sem EAS)
 
-1. Conta em [expo.dev](https://expo.dev).
-2. No projeto:
+O workflow **iOS IPA (GitHub macOS + Xcode)** usa os **runners `macos-14`** do GitHub com **Xcode**: `expo prebuild`, CocoaPods e `xcodebuild` para gerar o **`.ipa`**. **Não usa** Expo EAS nem token da Expo.
 
-   ```bash
-   npx eas init
-   ```
+Para instalar em **iPhone físico**, a Apple exige **assinatura**. Configure estes **Secrets** no repositório (*Settings → Secrets and variables → Actions*):
 
-   Isso adiciona `expo.extra.eas.projectId` no `app.json` / `app.config` — **commit esse arquivo**.
+| Secret | Descrição |
+|--------|-----------|
+| `APPLE_TEAM_ID` | Team ID (10 caracteres) em [developer.apple.com](https://developer.apple.com) |
+| `IOS_CERTIFICATE_BASE64` | Certificado de distribuição ou desenvolvimento **.p12** em Base64 |
+| `IOS_CERTIFICATE_PASSWORD` | Senha do .p12 |
+| `IOS_PROVISION_PROFILE_BASE64` | Arquivo **.mobileprovision** (mesmo Bundle ID `com.nubanktestios.com`) em Base64 |
+| `KEYCHAIN_PASSWORD` | Senha qualquer para o keychain temporário no CI (ex.: string aleatória longa) |
 
-3. Configure credenciais Apple no painel EAS ou com `eas credentials` (assinatura do iOS).
+**Gerar Base64 no terminal (Linux/macOS):**
 
-4. **GitHub:** em *Settings → Secrets and variables → Actions*, crie `EXPO_TOKEN` com um [access token](https://expo.dev/accounts/~/settings/access-tokens) da Expo.
+```bash
+base64 -w0 certificado.p12
+base64 -w0 perfil.mobileprovision
+```
 
-5. Rode o workflow **EAS iOS IPA** em *Actions* (manual). O artefato **nubank-ios-ipa** contém `Nubank.ipa`.
+Depois: **Actions → iOS IPA (GitHub macOS + Xcode) → Run workflow**. O artefato **nubank-ios-ipa** contém `Nubank.ipa`.
 
-O perfil usado é `preview` (`distribution: internal` no `eas.json`). Ajuste perfis em `eas.json` se precisar de App Store / TestFlight.
+> **Nota:** Runners macOS consomem minutos de Actions (fator 10× em relação ao Linux no plano pago). Repositórios públicos têm minutos gratuitos com limites.
 
 ## Sideloady
 
-O IPA do EAS já vem assinado; use Sideloady para instalar no dispositivo quando fizer sentido para testes locais. Para publicação na App Store, use fluxo EAS Submit / TestFlight.
+Com o `.ipa` já assinado (como neste fluxo), você pode instalar no dispositivo conforme seu fluxo habitual; o Sideloady costuma ser usado para reinstalar ou contas de desenvolvimento.
+
+## CI (TypeScript)
+
+O workflow **CI** roda `npm ci` e `tsc` em Ubuntu a cada push na `main`.
