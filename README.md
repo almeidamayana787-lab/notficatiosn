@@ -13,32 +13,17 @@ Abra no **Expo Go** (SDK alinhado ao `package.json`).
 
 ## Build .ipa no GitHub Actions (macOS + Xcode, sem EAS)
 
-O workflow **iOS IPA (GitHub macOS + Xcode)** usa os **runners `macos-14`** do GitHub com **Xcode**: `expo prebuild`, CocoaPods e `xcodebuild` para gerar o **`.ipa`**. **Não usa** Expo EAS nem token da Expo.
+O workflow **iOS IPA (GitHub macOS + Xcode)** roda em **`macos-14`**: `expo prebuild`, CocoaPods e `xcodebuild` **sem assinatura** no CI. **Não** usa Expo EAS, **não** usa token da Expo e **não** exige secrets Apple no repositório.
 
-Para instalar em **iPhone físico**, a Apple exige **assinatura**. Configure estes **Secrets** no repositório (*Settings → Secrets and variables → Actions*):
+1. **Actions** → **iOS IPA (GitHub macOS + Xcode)** → **Run workflow**
+2. Baixe o artefato **nubank-ios-ipa** (`Nubank.ipa`)
+3. No seu computador, abra o `.ipa` no **Sideloadly**, faça login com sua **Apple ID** e instale no iPhone (a assinatura é feita aí)
 
-| Secret | Descrição |
-|--------|-----------|
-| `APPLE_TEAM_ID` | Team ID (10 caracteres) em [developer.apple.com](https://developer.apple.com) |
-| `IOS_CERTIFICATE_BASE64` | Certificado de distribuição ou desenvolvimento **.p12** em Base64 |
-| `IOS_CERTIFICATE_PASSWORD` | Senha do .p12 |
-| `IOS_PROVISION_PROFILE_BASE64` | Arquivo **.mobileprovision** (mesmo Bundle ID `com.nubanktestios.com`) em Base64 |
-| `KEYCHAIN_PASSWORD` | Senha qualquer para o keychain temporário no CI (ex.: string aleatória longa) |
+### Limitações do Xcode
 
-**Gerar Base64 no terminal (Linux/macOS):**
+Em alguns runners/versões do Xcode, build **sem** certificado pode falhar. Nesse caso o job falha e pode ser gerado o artefato **ios-build-logs** com trechos de log para análise. Se precisar, gere o projeto com `npx expo prebuild` no Mac e arquive/exporte pelo Xcode, ou ajuste o scheme em [`.github/workflows/ios-ipa-macos.yml`](.github/workflows/ios-ipa-macos.yml) (`WORKSPACE` / `SCHEME`).
 
-```bash
-base64 -w0 certificado.p12
-base64 -w0 perfil.mobileprovision
-```
-
-Depois: **Actions → iOS IPA (GitHub macOS + Xcode) → Run workflow**. O artefato **nubank-ios-ipa** contém `Nubank.ipa`.
-
-> **Nota:** Runners macOS consomem minutos de Actions (fator 10× em relação ao Linux no plano pago). Repositórios públicos têm minutos gratuitos com limites.
-
-## Sideloady
-
-Com o `.ipa` já assinado (como neste fluxo), você pode instalar no dispositivo conforme seu fluxo habitual; o Sideloady costuma ser usado para reinstalar ou contas de desenvolvimento.
+> Runners macOS consomem mais minutos de Actions que Linux (fator 10× em planos pagos). Repositórios públicos têm cota gratuita com limites.
 
 ## CI (TypeScript)
 
