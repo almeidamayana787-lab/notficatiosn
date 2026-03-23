@@ -66,6 +66,10 @@ jobs:
             WORKSPACE=$(ls -1 *.xcworkspace 2>/dev/null | head -1)
             echo "Usando workspace: $WORKSPACE"
           fi
+          if [ -z "${WORKSPACE:-}" ] || [ ! -d "$WORKSPACE" ]; then
+            echo "::error::Nenhum .xcworkspace encontrado em ios/ (confira o nome do app no prebuild)."
+            exit 1
+          fi
 
           UNSIGNED_FLAGS=(
             "CODE_SIGNING_ALLOWED=NO"
@@ -94,13 +98,14 @@ jobs:
 
           set +e
           # Não usar -parallelizeTargets NO: no Xcode 16.x vira "Unknown build action 'NO'".
+          # Build settings antes de archive (padrão do xcodebuild).
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
             -configuration Release \
+            "${UNSIGNED_FLAGS[@]}" \
             -archivePath "$PWD/build/Nubank.xcarchive" \
             -destination 'generic/platform=iOS' \
             -jobs 2 \
-            archive \
-            "${UNSIGNED_FLAGS[@]}" 2> /tmp/archive.log
+            archive 2> /tmp/archive.log
           ARCHIVE_OK=$?
           set -e
 
@@ -118,11 +123,11 @@ jobs:
           set +e
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
             -configuration Release \
+            "${UNSIGNED_FLAGS[@]}" \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$PWD/build-dd" \
             -jobs 2 \
-            build \
-            "${UNSIGNED_FLAGS[@]}" 2> /tmp/build.log
+            build 2> /tmp/build.log
           BUILD_OK=$?
           set -e
 
