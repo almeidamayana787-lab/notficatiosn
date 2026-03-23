@@ -17,6 +17,8 @@ jobs:
       # Menos I/O e memória no Xcode (index store é pesado em CI).
       COMPILER_INDEX_STORE_ENABLE: NO
       COCOAPODS_DISABLE_STATS: true
+      # Evita aviso de depreciação Node 20 nas actions até Jun/2026 (blog GitHub Actions).
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,12 +93,12 @@ jobs:
           }
 
           set +e
+          # Não usar -parallelizeTargets NO: no Xcode 16.x vira "Unknown build action 'NO'".
           xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
             -configuration Release \
             -archivePath "$PWD/build/Nubank.xcarchive" \
             -destination 'generic/platform=iOS' \
             -jobs 2 \
-            -parallelizeTargets NO \
             archive \
             "${UNSIGNED_FLAGS[@]}" 2> /tmp/archive.log
           ARCHIVE_OK=$?
@@ -119,7 +121,6 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$PWD/build-dd" \
             -jobs 2 \
-            -parallelizeTargets NO \
             build \
             "${UNSIGNED_FLAGS[@]}" 2> /tmp/build.log
           BUILD_OK=$?
@@ -141,7 +142,12 @@ jobs:
           if [ -z "${APP:-}" ]; then
             echo "::error::Não foi possível gerar Nubank.app sem assinatura neste Xcode."
             echo "Anexe os logs: archive.log e build.log no issue."
-            cat /tmp/archive.log /tmp/build.log > "$GITHUB_WORKSPACE/build-failure-logs.txt" || true
+            {
+              echo "=== /tmp/archive.log ==="
+              cat /tmp/archive.log 2>/dev/null || echo "(ausente)"
+              echo "=== /tmp/build.log ==="
+              cat /tmp/build.log 2>/dev/null || echo "(ausente)"
+            } > "$GITHUB_WORKSPACE/build-failure-logs.txt"
             exit 1
           fi
 

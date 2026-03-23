@@ -34,7 +34,7 @@ Em alguns runners/versões do Xcode, build **sem** certificado pode falhar. Ness
 
 ### “The hosted runner lost communication with the server”
 
-Costuma ser **memória/CPU** no `pod install` ou no `xcodebuild`, ou instabilidade do runner. O workflow já usa `pod install` **sem** `--repo-update` (menos carga), repete até 3 vezes com pausa, limita paralelismo no `xcodebuild` (`-jobs 2`, `-parallelizeTargets NO`) e desativa index store no Xcode. Se ainda assim cair, **rode o workflow de novo** ou, em plano pago, use um runner macOS **maior** (ex.: `macos-15-xlarge` / `-large`) no `runs-on`.
+Costuma ser **memória/CPU** no `pod install` ou no `xcodebuild`, ou instabilidade do runner. O workflow já usa `pod install` **sem** `--repo-update` (menos carga), repete até 3 vezes com pausa, limita paralelismo no `xcodebuild` (`-jobs 2`) e desativa index store no Xcode. Se ainda assim cair, **rode o workflow de novo** ou, em plano pago, use um runner macOS **maior** (ex.: `macos-15-xlarge` / `-large`) no `runs-on`.
 
 > Runners macOS consomem mais minutos de Actions que Linux (fator 10× em planos pagos). Repositórios públicos têm cota gratuita com limites.
 
