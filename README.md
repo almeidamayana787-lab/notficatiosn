@@ -32,6 +32,10 @@ O workflow **iOS IPA (GitHub macOS + Xcode)** roda em **`macos-15`** (Xcode **16
 
 Em alguns runners/versões do Xcode, build **sem** certificado pode falhar. Nesse caso o job falha e pode ser gerado o artefato **ios-build-logs** com trechos de log para análise. Se precisar, gere o projeto com `npx expo prebuild` no Mac e arquive/exporte pelo Xcode, ou ajuste o scheme em [`.github/workflows/ios-ipa-macos.yml`](.github/workflows/ios-ipa-macos.yml) (`WORKSPACE` / `SCHEME`).
 
+### “The hosted runner lost communication with the server”
+
+Costuma ser **memória/CPU** no `pod install` ou no `xcodebuild`, ou instabilidade do runner. O workflow já limita paralelismo (`-jobs 2`), desativa index store no Xcode e repete o `pod install` até 3 vezes. Se ainda assim cair, **rode o workflow de novo** ou, em plano pago, use um runner macOS **maior** (ex.: `macos-15-xlarge` / `-large`) no `runs-on`.
+
 > Runners macOS consomem mais minutos de Actions que Linux (fator 10× em planos pagos). Repositórios públicos têm cota gratuita com limites.
 
 ## Typecheck (TypeScript)

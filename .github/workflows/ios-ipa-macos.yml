@@ -11,6 +11,8 @@ jobs:
   build:
     # RN 0.81+ (Expo 54) exige Xcode >= 16.1; macos-14 ainda vinha com Xcode 15.x e falhava no pod install.
     runs-on: macos-15
+    # Evita cortes por tempo em pod/xcodebuild pesados; "lost communication" costuma ser OOM/transiente.
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,6 +81,8 @@ jobs:
             -configuration Release \
             -archivePath "$PWD/build/Nubank.xcarchive" \
             -destination 'generic/platform=iOS' \
+            -jobs 2 \
+            -parallelizeTargets NO \
             archive \
             "${UNSIGNED_FLAGS[@]}" 2> /tmp/archive.log
           ARCHIVE_OK=$?
@@ -100,6 +104,8 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$PWD/build-dd" \
+            -jobs 2 \
+            -parallelizeTargets NO \
             build \
             "${UNSIGNED_FLAGS[@]}" 2> /tmp/build.log
           BUILD_OK=$?
