@@ -22,7 +22,7 @@ Se o push ficou “verde” mas você não vê `.ipa`, você olhou o log do **Ty
 
 ## Build .ipa no GitHub Actions (macOS + Xcode, sem EAS)
 
-O workflow **iOS IPA (GitHub macOS + Xcode)** roda em **`macos-14`**: `expo prebuild`, CocoaPods e `xcodebuild` **sem assinatura** no CI. **Não** usa Expo EAS, **não** usa token da Expo e **não** exige secrets Apple no repositório.
+O workflow **iOS IPA (GitHub macOS + Xcode)** roda em **`macos-15`** (Xcode **16.1+**, exigido pelo React Native / Expo 54). Faz `expo prebuild`, CocoaPods e `xcodebuild` **sem assinatura** no CI. **Não** usa Expo EAS, **não** usa token da Expo e **não** exige secrets Apple no repositório.
 
 1. **Actions** → **iOS IPA (GitHub macOS + Xcode)** → **Run workflow**
 2. Baixe o artefato **nubank-ios-ipa** (`Nubank.ipa`)
