@@ -1,7 +1,6 @@
-# Roda a cada push na main — confirma que o GitHub Actions está ativo no repositório.
-# (O build do .ipa continua no workflow "EAS iOS IPA", disparado manualmente.)
+# Só TypeScript no Ubuntu — NÃO gera .ipa (isso é outro workflow no macOS).
 
-name: CI
+name: Typecheck
 
 on:
   push:

@@ -11,6 +11,15 @@ npx expo start
 
 Abra no **Expo Go** (SDK alinhado ao `package.json`).
 
+### Importante: dois workflows diferentes
+
+| Workflow | O que faz | Gera `.ipa`? |
+|----------|-----------|----------------|
+| **Typecheck** | Ubuntu: `npm ci` + `tsc` (roda em **todo push** na `main`) | **Não** — só valida TypeScript |
+| **iOS IPA (GitHub macOS + Xcode)** | macOS: `expo prebuild` + Xcode | **Sim** (artefato **nubank-ios-ipa**), se você **disparar manualmente** |
+
+Se o push ficou “verde” mas você não vê `.ipa`, você olhou o log do **Typecheck**. O `.ipa` só aparece no job **iOS IPA**, em **Actions → escolher esse workflow → Run workflow**.
+
 ## Build .ipa no GitHub Actions (macOS + Xcode, sem EAS)
 
 O workflow **iOS IPA (GitHub macOS + Xcode)** roda em **`macos-14`**: `expo prebuild`, CocoaPods e `xcodebuild` **sem assinatura** no CI. **Não** usa Expo EAS, **não** usa token da Expo e **não** exige secrets Apple no repositório.
@@ -25,6 +34,6 @@ Em alguns runners/versões do Xcode, build **sem** certificado pode falhar. Ness
 
 > Runners macOS consomem mais minutos de Actions que Linux (fator 10× em planos pagos). Repositórios públicos têm cota gratuita com limites.
 
-## CI (TypeScript)
+## Typecheck (TypeScript)
 
-O workflow **CI** roda `npm ci` e `tsc` em Ubuntu a cada push na `main`.
+O workflow **Typecheck** roda `npm ci` e `tsc` em Ubuntu a cada push na `main`. É independente do build iOS.
